@@ -1,31 +1,27 @@
 @()(implicit request: RequestHeader, messages: Messages)
 
-@main("Twinty") {
-    <script src="@routes.Assets.versioned("javascripts/hello.js")" type="text/javascript"></script>
-    <script type="application/javascript">
-        var feedUrl = "@routes.HomeController.search()";
-    </script>
+@main("Search tweets") {
+    @helper.javascriptRouter("jsRoutes")(routes.javascript.HomeController.searchTweetsNow)
+    <script src="@routes.Assets.versioned("javascripts/searchTweets.js")" type="text/javascript"></script>
     <div class="row">
-        <div class="user col-md-6 col-md-offset-3">
+        <div class="col-md-6 col-md-offset-3">
             <div class="form-group">
-                <div class="right-inner-addon">
-                    <i class="glyphicon-search"></i>
+                <div>
                     <input type="search" id="searchInput" class="form-control" placeholder="@Messages("query")" />
                 </div>
                 <div class="form-group">
                     <button type="button" class="btn btn-primary btn-block" id="searchButton">
-                        @Messages("search")
+                    @Messages("search")
                     </button>
                 </div>
                 <div class="form-group">
                     <button type="button" class="btn btn-primary btn-block" id="closeButton">
-                        @Messages("close")
+                    @Messages("stop")
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
-        <div id="messageHolder">
-        </div>
+    <div class="row searched-tweets-holder">
+    </div>
 }

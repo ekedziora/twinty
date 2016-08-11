@@ -24,13 +24,16 @@ import play.api.libs.streams.ActorFlow
 import play.api.libs.ws.{StreamedResponse, WSClient}
 import play.api.mvc._
 import play.api.Logger
-import scala.sys.process._
 
-import scala.concurrent.Await
+import scala.sys.process._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
+
+import scala.util.Try
 
 @Singleton
 class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) extends Controller with I18nSupport {
@@ -65,7 +68,7 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
     )(unlift(Tweet.unapply))
 
   def index = Action { implicit request =>
-    Ok(views.html.index("S"))
+    Ok(views.html.index())
   }
 
   def search = Action {
@@ -74,7 +77,7 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
 
   private def initRequest() = {
     val response = ws.url("https://stream.twitter.com/1.1/statuses/sample.json")
-      .withQueryString("language" -> "en") // TODO: frazy
+      .withQueryString("language" -> "en")
       .sign(OAuthCalculator(HomeController.key, HomeController.token))
       .withMethod(HttpMethod.GET.name())
       .stream()
@@ -106,6 +109,14 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
     case "pos" => "Positive"
     case "neg" => "Negative"
     case "neu" => "Neutral"
+  }
+
+  def searchTweets() = Action { implicit request =>
+    Ok(views.html.searchTweets())
+  }
+
+  def searchTweetsNow() = Action { implicit request =>
+    Ok(JsObject(Map("text" -> JsString("NEW TWEET TEXT"))))
   }
 }
 
