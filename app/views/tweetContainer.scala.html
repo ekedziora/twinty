@@ -1,0 +1,8 @@
+@import model.Tweet
+@import play.api.libs.json.Json
+@import play.api.libs.json.JsValue
+@(tweet: JsValue)
+
+<div class="col-md-10 col-md-offset-1">
+    @Html(Json.stringify(tweet))
+</div>
