@@ -41,6 +41,7 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
     logger.error("Unhandled exception in stream", e)
     Supervision.Stop
   }
+
   implicit val system = ActorSystem("reactive-tweets")
   val materializerSettings = ActorMaterializerSettings(system).withSupervisionStrategy(decider)
   implicit val materializer = ActorMaterializer(materializerSettings)(system)
@@ -63,20 +64,12 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
       (JsPath \ "favorites").write[Int]
     )(unlift(Tweet.unapply))
 
-  var lastSent: JsValue = JsNull
-
   def index = Action { implicit request =>
     Ok(views.html.index("S"))
   }
 
   def search = Action {
     Ok.chunked(initRequest() via EventSource.flow).as(ContentTypes.EVENT_STREAM).withHeaders("Content-Encoding" -> "identity")
-  }
-
-  def mapLabel(s: String) = s match {
-    case "pos" => "Positive"
-    case "neg" => "Negative"
-    case "neu" => "Neutral"
   }
 
   private def initRequest() = {
@@ -87,12 +80,9 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
       .stream()
 
     Source.fromFuture(response)
-      .delay(5 seconds)
       .flatMapConcat(_.body)
       .via(Framing.delimiter(ByteString("\r\n"), 20000))
-      .map { bs =>
-        Json.parse(bs.utf8String)
-      }
+      .map(bs => Json.parse(bs.utf8String))
       .filter { jsValue =>
         (jsValue \ "event").asOpt[String].forall(_ == "user_update") && (jsValue \ "created_at").asOpt[String].isDefined &&
           (jsValue \ "text").asOpt[String].isDefined
@@ -102,14 +92,20 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
         try {
           val tweet = jsValue.as[Tweet]
           val command = "C:\\Users\\ekedz\\Anaconda3\\python.exe C:/Users/ekedz/PycharmProjects/sentiment/twitter/mySentimentAnalysis.py \"" + tweet.text + "\""
-          val saResult = command.!!
-          val label = mapLabel(saResult.trim())
+          val sentimentResult = command.!!
+          val label = mapSentimentToLabel(sentimentResult.trim())
           result = Json.toJson(tweet).as[JsObject] + ("sentiment", JsString(label))
         } catch {
-          case e: Exception => logger.error("ERROR", e);
+          case e: Exception => logger.error("Unhandled exception in stream", e);
         }
         result
       }
+  }
+
+  private def mapSentimentToLabel(s: String) = s match {
+    case "pos" => "Positive"
+    case "neg" => "Negative"
+    case "neu" => "Neutral"
   }
 }
 
