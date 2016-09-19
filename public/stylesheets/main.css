@@ -23,3 +23,27 @@ body {
     border: groove;
     word-wrap: break-word;
 }
+
+.tweet.pos {
+    background-color: lightgreen;
+}
+
+.tweet.neg {
+    background-color: #db8178;
+}
+
+.tweet.neu {
+    background-color: lightblue;
+}
+
+.sentiment.pos {
+    color: forestgreen;
+}
+
+.sentiment.neg {
+    color: red;
+}
+
+.sentiment.neu {
+    color: cornflowerblue;
+}

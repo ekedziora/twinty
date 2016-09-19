@@ -45,7 +45,7 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
     Supervision.Stop
   }
 
-  implicit val system = ActorSystem("reactive-tweets")
+  implicit val system = ActorSystem("twinty")
   val materializerSettings = ActorMaterializerSettings(system).withSupervisionStrategy(decider)
   implicit val materializer = ActorMaterializer(materializerSettings)(system)
 
@@ -95,9 +95,9 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
         try {
           val tweet = jsValue.as[Tweet]
           val command = "C:\\Users\\ekedz\\Anaconda3\\python.exe C:/Users/ekedz/PycharmProjects/sentiment/twitter/mySentimentAnalysis.py \"" + tweet.text + "\""
-          val sentimentResult = command.!!
-          val label = mapSentimentToLabel(sentimentResult.trim())
-          result = Json.toJson(tweet).as[JsObject] + ("sentiment", JsString(label))
+          val sentimentResult = command.!!.trim
+          val label = mapSentimentToLabel(sentimentResult)
+          result = Json.toJson(tweet).as[JsObject] + ("sentiment", JsString(label)) + ("sentimentClass", JsString(sentimentResult))
         } catch {
           case e: Exception => logger.error("Unhandled exception in stream", e);
         }
