@@ -1,5 +1,7 @@
 package controllers
 
+import java.io.File
+import java.nio.file.FileSystem
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -33,12 +35,15 @@ import play.api.libs.json._
 import play.api.libs.json.Reads._
 import play.api.libs.functional.syntax._
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 @Singleton
-class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) extends Controller with I18nSupport {
+class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient, val configuration: play.api.Configuration) extends Controller with I18nSupport {
 
   val logger: Logger = Logger("Stream logger")
+
+  val key: ConsumerKey = ConsumerKey(configuration.underlying.getString("twitter.consumer.key"), configuration.underlying.getString("twitter.consumer.secret"))
+  val token: RequestToken = RequestToken(configuration.underlying.getString("twitter.request.token"), configuration.underlying.getString("twitter.request.secret"))
 
   val decider: Supervision.Decider = { e =>
     logger.error("Unhandled exception in stream", e)
@@ -78,7 +83,7 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
   private def initRequest() = {
     val response = ws.url("https://stream.twitter.com/1.1/statuses/sample.json")
       .withQueryString("language" -> "en")
-      .sign(OAuthCalculator(HomeController.key, HomeController.token))
+      .sign(OAuthCalculator(key, token))
       .withMethod(HttpMethod.GET.name())
       .stream()
 
@@ -88,20 +93,27 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
       .map(bs => Json.parse(bs.utf8String))
       .filter { jsValue =>
         (jsValue \ "event").asOpt[String].forall(_ == "user_update") && (jsValue \ "created_at").asOpt[String].isDefined &&
-          (jsValue \ "text").asOpt[String].isDefined
+          (jsValue \ "text").asOpt[String].isDefined && (jsValue \ "truncated").asOpt[JsBoolean].contains(JsBoolean(false))
       }
       .map { jsValue =>
-        var result: JsValue = JsNull
-        try {
-          val tweet = jsValue.as[Tweet]
-          val command = "C:\\Users\\ekedz\\Anaconda3\\python.exe C:/Users/ekedz/PycharmProjects/sentiment/twitter/mySentimentAnalysis.py \"" + tweet.text + "\""
-          val sentimentResult = command.!!.trim
-          val label = mapSentimentToLabel(sentimentResult)
-          result = Json.toJson(tweet).as[JsObject] + ("sentiment", JsString(label)) + ("sentimentClass", JsString(sentimentResult))
-        } catch {
-          case e: Exception => logger.error("Unhandled exception in stream", e);
-        }
-        result
+        val tweet = jsValue.as[Tweet]
+        Try[String] {
+            val file = new File(".")
+            logger.debug(s"Current path: ${file.getAbsolutePath}")
+            val pathToScript = Seq("sentiment", "mySentimentAnalysis.py").mkString(File.separator)
+            val command = "python " + pathToScript + " \"" + tweet.text + "\""
+            command.!!.trim
+          }
+          .map(sentimentClass => (sentimentClass, mapSentimentToLabel(sentimentClass)))
+          .map { case (sentimentClass, sentimentLabel) =>
+            Json.toJson(tweet).as[JsObject] + ("sentiment", JsString(sentimentLabel)) + ("sentimentClass", JsString(sentimentClass))
+          }
+          .recoverWith {
+            case e: Throwable =>
+              logger.error("Exception occured in stream", e)
+              Failure(e)
+          }
+          .getOrElse[JsValue](JsNull)
       }
   }
 
@@ -118,9 +130,4 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient) 
   def searchTweetsNow() = Action { implicit request =>
     Ok(JsObject(Map("text" -> JsString("NEW TWEET TEXT"))))
   }
-}
-
-object HomeController {
-  val key: ConsumerKey = ConsumerKey("aMs4H5LwxiUDOg1l7w6GTavAS", "kLOlkVXX1zmuYdMUHDsnRXSfG6PZQKjHSJWUgvvUAUUSjvvYXz")
-  val token: RequestToken = RequestToken("718512636523081729-AzY9a6MuTBcFbHE61qkA4Jn4RBUg5Nn", "wJKpJEpyP7qZSNTqQzZU3wIhuqWb1KPdrIN1jTUz09rs1")
 }
