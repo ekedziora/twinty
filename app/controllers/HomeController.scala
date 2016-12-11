@@ -98,10 +98,8 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient, 
       .map { jsValue =>
         val tweet = jsValue.as[Tweet]
         Try[String] {
-            val file = new File(".")
-            logger.debug(s"Current path: ${file.getAbsolutePath}")
             val pathToScript = Seq("sentiment", "mySentimentAnalysis.py").mkString(File.separator)
-            val command = "python " + pathToScript + " \"" + tweet.text + "\""
+            val command = "python3 " + pathToScript + " \"" + tweet.text + "\""
             command.!!.trim
           }
           .map(sentimentClass => (sentimentClass, mapSentimentToLabel(sentimentClass)))
