@@ -1,0 +1,6 @@
+wordnet
+movie_reviews
+stopwords
+sentiwordnet
+names
+stopwords
