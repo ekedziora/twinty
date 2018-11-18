@@ -4,3 +4,4 @@ stopwords
 sentiwordnet
 names
 stopwords
+averaged_perceptron_tagger
