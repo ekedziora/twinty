@@ -100,7 +100,10 @@ class HomeController @Inject() (val messagesApi: MessagesApi, val ws: WSClient, 
         Try[String] {
             val pathToScript = Seq("sentiment", "mySentimentAnalysis.py").mkString(File.separator)
             val command = "python3 " + pathToScript + " \"" + tweet.text + "\""
-            command.!!.trim
+            println(command)
+            val res = command.!!.trim
+            println(res)
+            res
           }
           .map(sentimentClass => (sentimentClass, mapSentimentToLabel(sentimentClass)))
           .map { case (sentimentClass, sentimentLabel) =>
